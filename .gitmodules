@@ -1,0 +1,3 @@
+[submodule "compdisteval-private"]
+	path = compdisteval-private
+	url = https://github.com/gijswijnholds/compdisteval-private
