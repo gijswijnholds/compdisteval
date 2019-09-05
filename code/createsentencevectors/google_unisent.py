@@ -5,6 +5,8 @@ import tensorflow_hub as hub
 from compdisteval.code.createsentencevectors.util \
         import setup, prepareData, prepareELLData
 from compdisteval.code.createsentencevectors.util \
+        import prepareDataIntrans, prepareELLDataIntrans
+from compdisteval.code.createsentencevectors.util \
         import mapSentence, computeCorrelation
 
 
@@ -44,21 +46,33 @@ def main():
     logger = setup(logFileName)
     embedder = loadEmbedder()
 
-    gs2011Exp, ks2014Exp = prepareData(logger)
+    ml2008Exp, ml2010Exp = prepareDataIntrans(logger)
+    gs2011Exp, ks2013Exp, ks2014Exp = prepareData(logger)
+    mlelldisExp = prepareELLDataIntrans(logger)
     elldisExp, ellsimExp = prepareELLData(logger)
 
+    ml2008Embeddings = embedData(embedder, ml2008Exp)
+    ml2010Embeddings = embedData(embedder, ml2010Exp)
     gs2011Embeddings = embedData(embedder, gs2011Exp)
+    ks2013Embeddings = embedData(embedder, ks2013Exp)
     ks2014Embeddings = embedData(embedder, ks2014Exp)
+    mlelldisEmbeddings = embedData(embedder, mlelldisExp)
     elldisEmbeddings = embedData(embedder, elldisExp)
     ellsimEmbeddings = embedData(embedder, ellsimExp)
 
-    (gsRho, gsP) = computeCorrelation(gs2011Embeddings)
-    (ksRho, ksP) = computeCorrelation(ks2014Embeddings)
+    (ml2008Rho, ml2008P) = computeCorrelation(ml2008Embeddings)
+    (ml2010Rho, ml2010P) = computeCorrelation(ml2010Embeddings)
+    (gs2011Rho, gs2011P) = computeCorrelation(gs2011Embeddings)
+    (ks2013Rho, ks2013P) = computeCorrelation(ks2013Embeddings)
+    (ks2014Rho, ks2014P) = computeCorrelation(ks2014Embeddings)
+    (mlelldisRho, mlelldisP) = computeCorrelation(mlelldisEmbeddings)
     (elldisRho, elldisP) = computeCorrelation(elldisEmbeddings)
     (ellsimRho, ellsimP) = computeCorrelation(ellsimEmbeddings)
 
-    logging.info("GS2011 result: \n Rho: %s \t P: %s", gsRho, gsP)
-    logging.info("KS2014 result: \n Rho: %s \t P: %s", ksRho, ksP)
+    logging.info("GS2011 result: \n Rho: %s \t P: %s", gs2011Rho, gs2011P)
+    logging.info("KS2013 result: \n Rho: %s \t P: %s", ks2013Rho, ks2013P)
+    logging.info("KS2014 result: \n Rho: %s \t P: %s", ks2014Rho, ks2014P)
+    logging.info("MLELLDIS result: \n Rho: %s \t P: %s", mlelldisRho, mlelldisP)
     logging.info("ELLDIS result: \n Rho: %s \t P: %s", elldisRho, elldisP)
     logging.info("ELLSIM result: \n Rho: %s \t P: %s", ellsimRho, ellsimP)
 

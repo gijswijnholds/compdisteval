@@ -3,19 +3,23 @@ similarity experiments given a sentence encoder. Is subclassed for
 SkipThought, Facebook's InferSent, and Google's Univeral Sentence Encoder.
 """
 import logging
-import torch
+# import torch
 import numpy as np
-import tensorflow as tf
-import tensorflow_hub as hub
-from gensim.models import Doc2Vec
-from compdisteval.InferSent.encoder.models import InferSent
+# import tensorflow as tf
+# import tensorflow_hub as hub
+# from gensim.models import Doc2Vec
+# from compdisteval.InferSent.encoder.models import InferSent
 import compdisteval.SkipThought.skipthoughts as skipthoughts
 from compdisteval.code.util.paths import joinPaths, sentenceEncoderFolder
 from compdisteval.code.util.logger import setupLogging
 from compdisteval.code.createsentencevectors.util \
         import prepareData, prepareELLData
 from compdisteval.code.createsentencevectors.util \
+        import prepareDataIntrans, prepareELLDataIntrans
+from compdisteval.code.createsentencevectors.util \
         import prepareELLResolvedData, prepareELLAblatedData
+from compdisteval.code.createsentencevectors.util \
+        import prepareELLIntransResolvedData, prepareELLIntransAblatedData
 from compdisteval.code.createsentencevectors.util \
         import mapSentence, computeCorrelation
 
@@ -47,11 +51,17 @@ class SentenceEncoder(object):
         return embeddedData
 
     def prepareExpData(self):
-        gs2011Exp, ks2014Exp = prepareData()
+        ml2008Exp, ml2010Exp = prepareDataIntrans()
+        gs2011Exp, ks2013Exp, ks2014Exp = prepareData()
+        mlelldisExp = prepareELLDataIntrans()
+        mlelldisResExp = prepareELLIntransResolvedData()
+        mlelldisAblExp = prepareELLIntransAblatedData()
         elldisExp, ellsimExp = prepareELLData()
         elldisResExp, ellsimResExp = prepareELLResolvedData()
         elldisAblExp, ellsimAblExp = prepareELLAblatedData()
-        return [gs2011Exp, ks2014Exp,
+        return [ml2008Exp, ml2010Exp,
+                gs2011Exp, ks2013Exp, ks2014Exp,
+                mlelldisExp, mlelldisResExp, mlelldisAblExp,
                 elldisExp, ellsimExp,
                 elldisResExp, ellsimResExp,
                 elldisAblExp, ellsimAblExp]
@@ -70,66 +80,66 @@ class SentenceEncoder(object):
         return results
 
 
-class FBInferSent(SentenceEncoder):
-    def __init__(self, version, vSize):
-        logFileName = "Facebook InferSent.log.txt"
-        self.name = "Facebook InferSent %s, Dims %s" % (version, vSize)
-        self.version = version
-        self.vSize = vSize
+# class FBInferSent(SentenceEncoder):
+#     def __init__(self, version, vSize):
+#         logFileName = "Facebook InferSent.log.txt"
+#         self.name = "Facebook InferSent %s, Dims %s" % (version, vSize)
+#         self.version = version
+#         self.vSize = vSize
+#
+#         def embedderLoader():
+#             logging.info('Loading InferSent encoder...')
+#             MODEL_PATH = joinPaths(sentenceEncoderFolder,
+#                                    ('InferSent/encoder/infersent%s.pkl'
+#                                     % self.version))
+#             params_model = {'bsize': 64, 'word_emb_dim': 300,
+#                             'enc_lstm_dim': 2048, 'pool_type': 'max',
+#                             'dpout_model': 0.0, 'version': 1}
+#             model = InferSent(params_model)
+#             model.load_state_dict(torch.load(MODEL_PATH))
+#
+#             gloveFileName = '/share/glove/glove.840B.300d.txt'
+#             model.set_w2v_path(gloveFileName)
+#
+#             logging.info('Done loading InferSent encoder!')
+#             logging.info('Building vocabulary...')
+#             model.build_vocab_k_words(K=100000)
+#             logging.info('Done building vocabulary!')
+#             return model
+#
+#         def dataEmbedder(encoder, sentences):
+#             embeddings = encoder.encode(sentences, bsize=128, tokenize=False,
+#                                   verbose=True)
+#             return [e[:self.vSize] for e in embeddings]
+#
+#         super(FBInferSent, self).__init__(logFileName,
+#                                           embedderLoader,
+#                                           dataEmbedder)
 
-        def embedderLoader():
-            logging.info('Loading InferSent encoder...')
-            MODEL_PATH = joinPaths(sentenceEncoderFolder,
-                                   ('InferSent/encoder/infersent%s.pkl'
-                                    % self.version))
-            params_model = {'bsize': 64, 'word_emb_dim': 300,
-                            'enc_lstm_dim': 2048, 'pool_type': 'max',
-                            'dpout_model': 0.0, 'version': 1}
-            model = InferSent(params_model)
-            model.load_state_dict(torch.load(MODEL_PATH))
 
-            gloveFileName = '/share/glove/glove.840B.300d.txt'
-            model.set_w2v_path(gloveFileName)
-
-            logging.info('Done loading InferSent encoder!')
-            logging.info('Building vocabulary...')
-            model.build_vocab_k_words(K=100000)
-            logging.info('Done building vocabulary!')
-            return model
-
-        def dataEmbedder(encoder, sentences):
-            embeddings = encoder.encode(sentences, bsize=128, tokenize=False,
-                                  verbose=True)
-            return [e[:self.vSize] for e in embeddings]
-
-        super(FBInferSent, self).__init__(logFileName,
-                                          embedderLoader,
-                                          dataEmbedder)
-
-
-class GoogleUniSent(SentenceEncoder):
-    def __init__(self):
-        logFileName = "Google UniSent.log.txt"
-        self.name = "Google UniSent"
-
-        def embedderLoader():
-            logging.info("Loading universal encoder...")
-            embedder = hub.Module(
-                "https://tfhub.dev/google/universal-sentence-encoder/2")
-            logging.info("Done loading universal encoder!")
-            return embedder
-
-        def dataEmbedder(encoder, sentences):
-            with tf.Session() as session:
-                session.run([tf.global_variables_initializer(),
-                             tf.tables_initializer()])
-                embeddingsUnreal = session.run(encoder(sentences))
-                embeddings = np.array(embeddingsUnreal).tolist()
-            return embeddings
-
-        super(GoogleUniSent, self).__init__(logFileName,
-                                            embedderLoader,
-                                            dataEmbedder)
+# class GoogleUniSent(SentenceEncoder):
+#     def __init__(self):
+#         logFileName = "Google UniSent.log.txt"
+#         self.name = "Google UniSent"
+#
+#         def embedderLoader():
+#             logging.info("Loading universal encoder...")
+#             embedder = hub.Module(
+#                 "https://tfhub.dev/google/universal-sentence-encoder/2")
+#             logging.info("Done loading universal encoder!")
+#             return embedder
+#
+#         def dataEmbedder(encoder, sentences):
+#             with tf.Session() as session:
+#                 session.run([tf.global_variables_initializer(),
+#                              tf.tables_initializer()])
+#                 embeddingsUnreal = session.run(encoder(sentences))
+#                 embeddings = np.array(embeddingsUnreal).tolist()
+#             return embeddings
+#
+#         super(GoogleUniSent, self).__init__(logFileName,
+#                                             embedderLoader,
+#                                             dataEmbedder)
 
 
 class KirosSkipThought(SentenceEncoder):
@@ -150,59 +160,61 @@ class KirosSkipThought(SentenceEncoder):
                                                dataEmbedder)
 
 
-class Doc2VecAPNews(SentenceEncoder):
-    def __init__(self):
-        logFileName = "Doc2Vec APNews.log.txt"
-        self.name = "Doc2Vec APNews"
-
-        def embedderLoader():
-            modelPath = joinPaths(sentenceEncoderFolder,
-                                  "Doc2Vec/models/apnews_dbow/doc2vec.bin")
-            model = Doc2Vec.load(modelPath)
-            return model
-
-        def dataEmbedder(encoder, sentences):
-            embeddings = [encoder.infer_vector(s.strip().split())
-                          for s in sentences]
-            return embeddings
-
-        super(Doc2VecAPNews, self).__init__(logFileName,
-                                            embedderLoader,
-                                            dataEmbedder)
-
-
-class Doc2VecWiki(SentenceEncoder):
-    def __init__(self):
-        logFileName = "Doc2Vec EN Wikipedia.log.txt"
-        self.name = "Doc2Vec EN Wikipedia"
-
-        def embedderLoader():
-            modelPath = joinPaths(sentenceEncoderFolder,
-                                  "Doc2Vec/models/enwiki_dbow/doc2vec.bin")
-            model = Doc2Vec.load(modelPath)
-            return model
-
-        def dataEmbedder(encoder, sentences):
-            embeddings = [encoder.infer_vector(s.strip().split())
-                          for s in sentences]
-            return embeddings
-
-        super(Doc2VecWiki, self).__init__(logFileName,
-                                          embedderLoader,
-                                          dataEmbedder)
+# class Doc2VecAPNews(SentenceEncoder):
+#     def __init__(self):
+#         logFileName = "Doc2Vec APNews.log.txt"
+#         self.name = "Doc2Vec APNews"
+#
+#         def embedderLoader():
+#             modelPath = joinPaths(sentenceEncoderFolder,
+#                                   "Doc2Vec/models/apnews_dbow/doc2vec.bin")
+#             model = Doc2Vec.load(modelPath)
+#             return model
+#
+#         def dataEmbedder(encoder, sentences):
+#             embeddings = [encoder.infer_vector(s.strip().split())
+#                           for s in sentences]
+#             return embeddings
+#
+#         super(Doc2VecAPNews, self).__init__(logFileName,
+#                                             embedderLoader,
+#                                             dataEmbedder)
+#
+#
+# class Doc2VecWiki(SentenceEncoder):
+#     def __init__(self):
+#         logFileName = "Doc2Vec EN Wikipedia.log.txt"
+#         self.name = "Doc2Vec EN Wikipedia"
+#
+#         def embedderLoader():
+#             modelPath = joinPaths(sentenceEncoderFolder,
+#                                   "Doc2Vec/models/enwiki_dbow/doc2vec.bin")
+#             model = Doc2Vec.load(modelPath)
+#             return model
+#
+#         def dataEmbedder(encoder, sentences):
+#             embeddings = [encoder.infer_vector(s.strip().split())
+#                           for s in sentences]
+#             return embeddings
+#
+#         super(Doc2VecWiki, self).__init__(logFileName,
+#                                           embedderLoader,
+#                                           dataEmbedder)
 
 
 def createModels():
-    inferSentModel1 = FBInferSent(1, 4096)
-    inferSentModel2 = FBInferSent(2, 4096)
-    inferSentModel1Short = FBInferSent(1, 300)
-    uniSentModel = GoogleUniSent()
+    # inferSentModel1 = FBInferSent(1, 4096)
+    # inferSentModel2 = FBInferSent(2, 4096)
+    # inferSentModel1Short = FBInferSent(1, 300)
+    # inferSentModel2Short = FBInferSent(2, 300)
+    # uniSentModel = GoogleUniSent()
     skipThoughtModel = KirosSkipThought()
-    doc2vecAPNewsModel = Doc2VecAPNews()
-    doc2vecWikiModel = Doc2VecWiki()
-    return [doc2vecAPNewsModel, doc2vecWikiModel, skipThoughtModel,
-            inferSentModel1, inferSentModel2, uniSentModel,
-            inferSentModel1Short]
+    # doc2vecAPNewsModel = Doc2VecAPNews()
+    # doc2vecWikiModel = Doc2VecWiki()
+    # return [doc2vecAPNewsModel, doc2vecWikiModel]  # ,  # , skipThoughtModel,
+    # return [inferSentModel1, inferSentModel2, inferSentModel1Short, inferSentModel2Short]
+    # return [uniSentModel]
+    return [skipThoughtModel]
 
 
 def main():
