@@ -11,7 +11,7 @@ from compdisteval.code.createtensors.util import save_tensors
 
 '''
 Create relational tensors based on verb subj/obj frequency counts.
-Given a dictionary of verbs:{(subj1,obj1):f_1, ... , (subjn,objn):f_n}
+Given a dictionary of verb:{(subj1,obj1):f_1, ... , (subjn,objn):f_n}
 we create the tensor by computing the sum of subject and ovject vectors
     SUM_i f_i (subj_i (x) obj_i)
 '''
